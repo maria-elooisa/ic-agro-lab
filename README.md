@@ -15,7 +15,7 @@ Provar empiricamente que a tomada de decisão baseada em modelos de Machine Lear
 ## 🎮 As Regras do Jogo: Categorias de Decisão (Classes da IA)
 O motor do jogo e as previsões do modelo de Machine Learning são baseados em **4 categorias de ações principais** que alteram o estado da cultura:
 
-* **`0` - Condição Ideal:** Todos os parâmetros estão estabilizados na faixa ótima. Nenhuma ação corretiva é necessária.
+* **`0` - Não Fazer nada:** Todos os parâmetros estão estabilizados na faixa ótima. Nenhuma ação corretiva é necessária.
 * **`1` - Nutrientes em Excesso (Travar Irrigação):** Níveis elevados de fertilizantes ou condutividade elétrica detectados. O sistema interrompe o fluxo de água/nutrientes para evitar toxicidade, desperdício ou bloqueio de outros elementos cruciais.
 * **`2` - Nutrientes em Escassez (Irrigar):** Níveis abaixo do recomendado ou estresse hídrico detectado. Aciona a fertirrigação para repor água e macronutrientes.
 * **`3` - Proteger (Sombrite / Ventilação / Cobertura):** Ativada em condições de extremos climáticos (luminosidade excessiva, calor extremo ou risco de geada) para mitigar o estresse térmico, escaldaduras ou o aparecimento de fungos e doenças.
@@ -28,10 +28,9 @@ Os modelos de IA utilizam **7 variáveis contínuas cruciais** capturadas via se
 1. **Macronutrientes (N, P, K):** Nitrogênio, Fósforo e Potássio. Monitorados para avaliar o crescimento vegetativo, floração e qualidade do fruto por fase fenológica.
 2. **pH:** Regulador central. Fora da faixa ideal, bloqueia a absorção dos nutrientes na solução nutritiva.
 3. **Temperatura do Ar:** Regula o ciclo metabólico geral e atua como o principal disparador crítico para as ações de proteção térmica.
-4. **Temperatura da Solução Nutritiva / Substrato:** Crítico em sistemas hidropônicos e semi-hidropônicos para garantir a oxigenação radicular e estabilidade de absorção.
-5. **Umidade (Solo / Substrato):** Feature direta para acionar os comandos automatizados de irrigação ou drenagem.
-6. **Umidade Relativa do Ar:** Influencia diretamente na taxa de transpiração da planta e se torna um gatilho de risco para a proliferação de fungos em níveis elevados.
-7. **Luminosidade (lux / fotoperíodo):** Combustível essencial da fotossíntese, impactando diretamente no florescimento pleno e na concentração de açúcares nos frutos.
+4. **Umidade (Solo / Substrato):** Feature direta para acionar os comandos automatizados de irrigação ou drenagem.
+5. **Umidade Relativa do Ar:** Influencia diretamente na taxa de transpiração da planta e se torna um gatilho de risco para a proliferação de fungos em níveis elevados.
+6. **Radiação (lux / fotoperíodo):** Combustível essencial da fotossíntese, impactando diretamente no florescimento pleno e na concentração de açúcares nos frutos.
 
 ---
 

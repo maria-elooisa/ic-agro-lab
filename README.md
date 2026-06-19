@@ -1,18 +1,18 @@
 # AgroLab AI - Sistema Integrado de Gestão Agrícola Gamificada
 
-## 📝 Descrição do Projeto
+## Descrição do Projeto
 O **AgroLab AI** é um projeto de iniciação científica focado no desenvolvimento de um sistema integrado e gamificado. O grande objetivo da plataforma é demonstrar como a Inteligência Artificial (alimentada por dados preditivos e variáveis ambientais) pode otimizar a tomada de decisões no manejo de culturas agrícolas, superando a performance de decisões humanas tradicionais.
 
 Através de uma interface dinâmica (estilo jogo 2D) alimentada por uma API (FastAPI), o usuário e a IA competem para gerenciar as condições de cultivo.
 
 ---
 
-## 🎯 Objetivo Principal
+## Objetivo Principal
 Provar empiricamente que a tomada de decisão baseada em modelos de Machine Learning/IA maximiza a produtividade e previne riscos com maior eficácia do que a intuição ou a tomada de decisão humana convencional. O sistema calcula o impacto das ações na saúde, qualidade e biomassa da planta em tempo real.
 
 ---
 
-## 🎮 As Regras do Jogo: Categorias de Decisão (Classes da IA)
+## As Regras do Jogo: Categorias de Decisão (Classes da IA)
 O motor do jogo e as previsões do modelo de Machine Learning são baseados em **4 categorias de ações principais** que alteram o estado da cultura:
 
 * **`0` - Não Fazer nada:** Todos os parâmetros estão estabilizados na faixa ótima. Nenhuma ação corretiva é necessária.
@@ -22,7 +22,7 @@ O motor do jogo e as previsões do modelo de Machine Learning são baseados em *
 
 ---
 
-## 📊 Features de Entrada (Variáveis do Modelo)
+## Features de Entrada (Variáveis do Modelo)
 Os modelos de IA utilizam **7 variáveis contínuas cruciais** capturadas via sensores para determinar a ação correta:
 
 1. **Macronutrientes (N, P, K):** Nitrogênio, Fósforo e Potássio. Monitorados para avaliar o crescimento vegetativo, floração e qualidade do fruto por fase fenológica.
@@ -34,7 +34,7 @@ Os modelos de IA utilizam **7 variáveis contínuas cruciais** capturadas via se
 
 ---
 
-## 🌿 Culturas Monitoradas e Parâmetros de Referência
+## Culturas Monitoradas e Parâmetros de Referência
 
 O sistema adapta suas regras de recompensa e punição no jogo de acordo com os limites científicos de cada cultura:
 
@@ -60,11 +60,11 @@ Hortaliça de altíssima relevância econômica, caracterizada por uma resposta 
 * **Temperatura do Ar:** Desenvolvimento vegetativo e frutificação ideais entre 21°C e 28°C. Dispara *Proteger (Ventilação)* se $>38^{\circ}C$ e *Proteger (Cobertura)* se $<10^{\circ}C$ (interrompe a síntese de licopeno).
 * **Umidade do Ar Ideal:** Diurna em torno de 75% e noturna em 85% em ambiente hidropônico. Alertas críticos para fungos acionados se a umidade relativa ultrapassar 85% combinada com calor.
 * **Luminosidade Mínima:** Exigência de pelo menos 6 horas de luz direta por dia. Baixos níveis geram frutos ocos e reduzem o Grau Brix (açúcar).
-* **Manejo Estratégico:** Apresenta alta sensibilidade à falta de Cálcio (Ca) associada à irrigação irregular, o que causa a podridão apical (mancha escura no fundo do fruto). Exige a suspensão completa da irrigação de 14 a 28 dias antes da colheita para concentrar açúcares.
+* **Manejo Estratégico:** Apresenta alta sensibilidade à falta de Cálcio (Ca) associada à irrigação irregular.
 
 ---
 
-## 🧠 Arquitetura de Machine Learning
+## Arquitetura de Machine Learning
 O projeto prevê problemas de **Classificação** (para recomendar a melhor ação em tempo real no jogo) e **Regressão/Séries Temporais** (para prever variáveis-alvo complexas como produtividade final em kg/ha, score de qualidade do fruto e ocorrência de rachaduras):
 
 ### Pipeline de Desenvolvimento

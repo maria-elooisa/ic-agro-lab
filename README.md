@@ -38,7 +38,7 @@ Os modelos de IA utilizam **7 variáveis contínuas cruciais** capturadas via se
 
 O sistema adapta suas regras de recompensa e punição no jogo de acordo com os limites científicos de cada cultura:
 
-### 1. Alface (Foco: Ciclo Rápido e Hidroponia NFT)
+### 1. Alface Crespa (Foco: Ciclo Rápido e Hidroponia NFT)
 A alface é altamente responsiva, com ciclo curto de 25 a 45 dias, tornando-a ideal para avaliar o pipeline de ML.
 * **pH Ideal (NFT):** 5,5 a 6,5 (Limites críticos: < 4,5 ou > 7,5).
 * **Condutividade Elétrica (CE):** 0,8 a 2,0 mS/cm (250 ppm em berçário até 1000 ppm em crescimento pleno).

@@ -19,6 +19,8 @@ A geração de dados sintéticos resolve esse impasse permitindo:
 
 A premissa metodológica é que **dados sintéticos não substituem dados reais — eles dão a partida (*bootstrap*)**. O modelo treinado em dados sintéticos serve de ponto de partida; conforme sensores reais entram em operação, o dataset é progressivamente enriquecido e o modelo, re-treinado (estratégia de *sim-to-real* / *transfer learning*).
 
+**Nota importante sobre o realismo:** o dataset sintético não parte de faixas arbitrárias. Ele é **ancorado em séries meteorológicas históricas reais** das regiões produtoras de alface do Cinturão Verde paulista (§5). Isso é o que distingue um dataset sintético *plausível* de um *inventado*.
+
 ---
 
 ## 2. Escopo: variáveis-alvo e classes de ação
@@ -40,6 +42,8 @@ O classificador recebe, a cada instante de decisão, um vetor de estado. O núcl
 
 > **Nota de consistência:** a descrição original do projeto menciona "7 features" mas enumera 8 grandezas. Recomenda-se tratar **radiação/DLI** como feature de pleno direito (é determinante para a alface — ver §4.4), totalizando 8. A grande diferença entre sistemas está na **feature 6**: em solo mede-se a *umidade do solo*; em NFT a variável análoga e mais informativa é a *condutividade elétrica (CE)* da solução, pois a planta vive em fluxo contínuo de solução e não há "solo" para reter água.
 
+> **Origem dos dados por feature:** as features **5, 7 e 8** (temperatura, umidade relativa, radiação) são **ambientais** e serão populadas a partir das séries climáticas reais (§5). As features **1–4 e 6** (N, P, K, pH, CE/umidade) são de **manejo e sistema** — vêm das regras agronômicas (§4) e, futuramente, dos sensores da bancada NFT. O clima é o pano de fundo; o manejo é aquilo sobre o que a IA decide.
+
 ### 2.2 Features adicionais recomendadas (forward-looking)
 
 A análise crítica dos documentos (entregável complementar) identificou variáveis ausentes que **elevam substancialmente o realismo** e devem ser incorporadas assim que houver instrumentação. O framework já as prevê como colunas opcionais do dataset sintético:
@@ -54,6 +58,8 @@ A análise crítica dos documentos (entregável complementar) identificou variá
 | Nitrato foliar (NO₃⁻) | Qualidade e limite legal (UE) — ver §4.6 | conforme época/sistema |
 | Temperatura do solo | Em campo, afeta germinação e absorção | — |
 
+> **VPD sai de graça:** a série climática (§5) fornece ponto de orvalho, o que permite **calcular o VPD** sem instrumentação adicional. Ou seja, uma das variáveis que faltavam nos documentos originais já entra no dataset desde a primeira versão.
+
 ### 2.3 As 4 classes de ação (rótulo de saída)
 
 | Classe | Ação | Gatilho agronômico (resumo) |
@@ -63,7 +69,7 @@ A análise crítica dos documentos (entregável complementar) identificou variá
 | **2** | Irrigar / corrigir **escassez** | Umidade baixa, CE baixa, déficit hídrico ou nutricional |
 | **3** | Proteger / **extremos climáticos** | Temperatura fora da faixa, radiação extrema, risco de pendoamento/*tipburn*/geada |
 
-A lógica completa que mapeia estado → classe está em **§5**.
+A lógica completa que mapeia estado → classe está em **§6**.
 
 ---
 
@@ -75,11 +81,13 @@ Nenhuma técnica isolada gera um dataset agronomicamente fiel **e** estatisticam
 
 **O que é.** Modelos de cultivo baseados em processos fisiológicos (fotossíntese, balanço hídrico, partição de biomassa, fenologia) que, dado clima + solo + manejo, simulam o desenvolvimento da planta dia a dia. O exemplo canônico é o **DSSAT** (*Decision Support System for Agrotechnology Transfer*; Jones et al., 2003) e o **APSIM**.
 
-**Papel no framework.** Gerar **trajetórias temporais coerentes** — séries em que temperatura, umidade, radiação e crescimento evoluem com correlações físicas reais (ex.: dias quentes e secos aumentam a ET e a demanda hídrica). É a camada que garante que o dataset não viole leis físicas/biológicas.
+**Papel no framework.** Gerar **trajetórias temporais coerentes** — séries em que temperatura, umidade, radiação e crescimento evoluem com correlações físicas reais (ex.: dias quentes e secos aumentam a ET e a demanda hídrica). É a camada que garante que o dataset não viole leis físicas/biológicas. **O insumo climático desta camada são as séries reais de §5** — não distribuições sintéticas arbitrárias.
 
 **Ressalva crítica para alface.** O DSSAT **não possui um módulo nativo consolidado para alface** (seu foco histórico são grandes culturas: milho, trigo, soja). Usá-lo para *Lactuca sativa* exige (a) calibração de parâmetros de cultivar a partir de dados experimentais, ou (b) adaptação de um modelo genérico de folhosas. Esta limitação deve ser documentada: a Camada 1 fornece o **esqueleto temporal e as correlações climáticas**, mas os limiares fisiológicos específicos da alface crespa vêm das Camadas 2 e 3 e da literatura (§4).
 
 **Alternativa pragmática.** Onde a calibração do DSSAT for inviável nesta fase, modelos mais simples cumprem o papel: balanço hídrico tipo FAO-56 (Penman-Monteith) para ET, e modelos de graus-dia (*growing degree days*, base ~4 °C para alface) para fenologia. São transparentes, exigem poucos parâmetros e são suficientes para gerar a espinha dorsal temporal.
+
+**Desagregação intradiária.** As séries climáticas são **diárias** (com máxima e mínima). A reconstrução do ciclo dia/noite — necessária porque os limiares da alface são explicitamente diurnos (15–20 °C) e noturnos (8–12 °C) — é feita **nesta camada**, por interpolação senoidal entre T_min e T_max. Assim o download permanece leve e ganha-se resolução horária plausível.
 
 ### 3.2 Camada 2 — Simulação de Casos-Limite (*Edge-Case Simulation*)
 
@@ -97,6 +105,8 @@ Nenhuma técnica isolada gera um dataset agronomicamente fiel **e** estatisticam
 
 **Método.** Para cada caso-limite, define-se a região do espaço de features que o caracteriza e amostra-se densamente nela, com ruído controlado para gerar variabilidade realista. Isso equilibra ativamente o dataset, contrapondo-se ao desbalanceamento natural (em que >80 % dos instantes seriam classe 0).
 
+**Calibração pelo clima real (§5).** Os casos-limite **climáticos** (geada, onda de calor) não são inventados: sua **frequência e magnitude são extraídas das séries históricas** dos polos produtores. A contagem de dias com T_min < 7 °C e T_max > 28 °C nas séries reais informa com que probabilidade a classe 3 deve aparecer — em vez de arbitrarmos um percentual. Os casos-limite **de sistema** (falha de bomba, salinização) continuam sendo injetados por regra, pois não têm contrapartida climática.
+
 ### 3.3 Camada 3 — Geração Tabular por Regras + GANs (*Rule-Based + CTGAN*)
 
 **O que é.** Duas sub-técnicas que produzem o **volume** de amostras tabulares e suas **interdependências estatísticas**.
@@ -110,32 +120,38 @@ Nenhuma técnica isolada gera um dataset agronomicamente fiel **e** estatisticam
 ### 3.4 Pipeline integrado
 
 ```
-            ┌─────────────────────────────────────────────────────────┐
-            │  Literatura validada (§4): faixas ideal/aceitável/crítica│
-            └─────────────────────────────────────────────────────────┘
-                                     │ (parametriza todas as camadas)
-                                     ▼
+   ┌──────────────────────────────┐   ┌──────────────────────────────────┐
+   │ §5 Clima real (NASA POWER)   │   │ §4 Literatura validada           │
+   │ séries diárias 2015–2025     │   │ faixas ideal/aceitável/crítica   │
+   │ 2 polos do Cinturão Verde    │   │ (pH, CE, T, DLI, nutrição)       │
+   └──────────────────────────────┘   └──────────────────────────────────┘
+                │                                      │
+                │  (features ambientais:               │ (parametriza
+                │   T_ar, UR, radiação/DLI, VPD)       │  todas as camadas)
+                ▼                                      ▼
    Camada 1 (Mecanística) ──► trajetórias temporais clima↔planta coerentes
-                                     │
+                                     │                  + desagregação dia/noite
+                                     ▼
    Camada 2 (Edge-Case)   ──► injeção dirigida de cenários críticos (classes 1,2,3)
-                                     │
+                                     │                  frequência calibrada pelo clima real
+                                     ▼
    Camada 3a (Regras)     ──► massa de amostras tabulares plausíveis
    Camada 3b (CTGAN)      ──► enriquecimento das correlações + balanceamento condicional
                                      │
                                      ▼
             ┌─────────────────────────────────────────────────────────┐
-            │  Rotulagem por regras (§5): estado → classe de ação 0–3  │
+            │  Rotulagem por regras (§6): estado → classe de ação 0–3  │
             └─────────────────────────────────────────────────────────┘
                                      │
                                      ▼
-                  Validação do dataset sintético (§6)
+                  Validação do dataset sintético (§7)
 ```
 
 ---
 
 ## 4. Faixas-parâmetro validadas (alface crespa)
 
-Estes são os valores que parametrizam as três camadas. Diferenciam **solo convencional** de **hidroponia NFT** sempre que divergem. Fontes em §8.
+Estes são os valores que parametrizam as três camadas. Diferenciam **solo convencional** de **hidroponia NFT** sempre que divergem. Fontes em §9.
 
 ### 4.1 pH
 
@@ -223,7 +239,96 @@ Ordem de micronutrientes por concentração: **Fe > Mn > B > Zn > Cu**.
 
 ---
 
-## 5. Lógica de rotulagem das 4 classes (estado → ação)
+## 5. Ancoragem Climática em Dados Reais (Protocolo de Aquisição)
+
+Esta seção documenta a **aquisição das séries meteorológicas históricas** que ancoram o dataset sintético. Sem ela, as faixas de temperatura, umidade e radiação seriam arbitrárias; com ela, o dataset reflete o clima que a alface **de fato** enfrenta nas regiões onde é mais produzida.
+
+### 5.1 Objetivo
+
+Obter séries climáticas reais das regiões produtoras do **Cinturão Verde paulista** para parametrizar as Camadas 1 e 2 (§3.1, §3.2). O produto **não é o dataset final** — é o *molde estatístico* de onde a geração sintética amostrará os cenários.
+
+### 5.2 Fonte de dados
+
+**NASA POWER — API diária** (*Prediction of Worldwide Energy Resources*, NASA Langley Research Center).
+
+| Aspecto | Descrição |
+|---|---|
+| Origem | Radiação derivada de satélite (CERES / GEWEX SRB); meteorologia do modelo de assimilação **MERRA-2** (NASA/GMAO) |
+| Natureza | **Reanálise/satélite** — *não* é estação meteorológica de superfície (declarar no método) |
+| Licença | Uso aberto, **CC BY 4.0**; sem chave de API nem cadastro |
+| Resolução | ~0,5° × 0,625° (meteorologia); 1° × 1° (radiação) — células de aprox. **50 × 60 km** |
+| Cobertura | 01/01/1981 até *near real time* |
+| Citação | Agradecimento ao NASA LaRC POWER Project (Earth Science / Applied Science Program) — obrigatório no artigo |
+
+### 5.3 Escopo espacial — **2 polos** (não 3 cidades)
+
+A resolução da grade **não distingue Piedade de Ibiúna** (~22 km entre si, abaixo do tamanho da célula). Adotamos, portanto, **dois pontos climáticos**:
+
+| Polo | Municípios | Coordenada de referência | Altitude | Köppen |
+|------|-----------|--------------------------|----------|--------|
+| **Sudoeste** | Ibiúna + Piedade | −23,6583 / −47,2113 (Ibiúna) | ~800–1.000 m | Cfb |
+| **Alto Tietê** | Mogi das Cruzes | −23,5217 / −46,1860 | ~780 m | Cfa |
+
+*(Coordenada complementar, para o teste de equivalência: Piedade −23,7170 / −47,4142.)*
+
+**Justificativa da fusão.** As duas cidades são climaticamente equivalentes (mesma faixa de altitude, mesmo regime subtropical de altitude, ambas nas encostas da Serra de Paranapiacaba) e caem na mesma célula da grade. Tratá-las como séries independentes configuraria **pseudorreplicação** — duplicar o mesmo dado fingindo que são amostras distintas.
+
+**Validação empírica obrigatória.** O script baixará as **três** coordenadas e comparará as séries de Ibiúna e Piedade. Se retornarem idênticas, a fusão fica **comprovada** (evidência citável, não suposição). Se divergirem, a decisão é revista.
+
+### 5.4 Escopo temporal
+
+**01/01/2015 a 31/12/2025** — 11 anos completos (4.018 dias por ponto).
+
+Justificativa: (a) cobre 11 verões e 11 invernos, capturando variabilidade interanual e anos atípicos — essenciais para os *edge cases*; (b) período inteiramente **fora da janela de dados preliminares (NRT)**, portanto de qualidade climática consolidada; (c) evita truncar um ano pela metade.
+
+### 5.5 Parâmetros e mapeamento para as *features*
+
+| Parâmetro POWER | Grandeza | Uso no AgroLab |
+|---|---|---|
+| `T2M`, `T2M_MAX`, `T2M_MIN` | Temperatura do ar (média/máx/mín) | Feature **temperatura**; máx/mín preservam a distinção dia/noite |
+| `RH2M` | Umidade relativa | Feature **umidade relativa** |
+| `ALLSKY_SFC_SW_DWN` | Radiação solar incidente | Feature **radiação** → convertida em **DLI** |
+| `ALLSKY_SFC_PAR_TOT` | PAR (luz fotossintética) | **DLI** direto, se disponível |
+| `T2MDEW` | Ponto de orvalho | Cálculo de **VPD** |
+| `PRECTOTCORR` | Precipitação | Contexto (chuva → UR alta → risco fúngico) |
+| `WS2M` | Velocidade do vento | Evapotranspiração (FAO-56) |
+
+### 5.6 Variáveis derivadas
+
+- **DLI** (mol/m²·dia), a partir da radiação. O script **lê as unidades retornadas pela própria API** em vez de assumi-las, aplicando a conversão adequada (fração PAR ≈ 0,45 e fator ≈ 4,57 µmol/J, quando partindo da radiação de onda curta). Confronto direto com a faixa-alvo de §4.4 (**12–16 mol/m²·dia**).
+- **VPD** (kPa), a partir de temperatura e ponto de orvalho (equação de Tetens). Faixa-alvo: **0,8–1,2 kPa** (§2.2).
+
+> O **DLI é, por definição, uma grandeza diária** (mol/m²·**dia**). Para a feature de radiação, portanto, o dado diário não é aproximação — é a granularidade correta.
+
+### 5.7 Granularidade: diário agora, horário na geração
+
+Adota-se o dado **diário com máxima e mínima**. A desagregação intradiária (reconstrução do ciclo dia/noite por interpolação senoidal) ocorre na **Camada 1** (§3.1), onde pertence conceitualmente. Isso mantém o download leve sem perder a distinção entre limiares diurnos (15–20 °C) e noturnos (8–12 °C).
+
+### 5.8 Controle de qualidade
+
+- Tratamento do valor sentinela de ausência (`-999`) — **jamais** convertê-lo em zero.
+- Verificação de continuidade da série (4.018 dias, sem lacunas).
+- Sanidade física: T_min ≤ T_méd ≤ T_max; UR ∈ [0, 100] %; radiação ≥ 0.
+- Confronto das médias obtidas com a climatologia publicada (Ibiúna ~18 °C; Mogi das Cruzes ~19,5 °C) — divergência grande indica erro na requisição.
+
+### 5.9 Saídas
+
+1. `clima_bruto_{cidade}.csv` — dados diários crus, como vieram da API (rastreabilidade).
+2. `clima_processado.csv` — série consolidada dos 2 polos, com DLI e VPD calculados.
+3. **Relatório de perfil climático** — estatísticas descritivas, sazonalidade e, sobretudo, **contagem e frequência dos eventos-limite**: dias com `T2M_MIN` < 7 °C (risco de necrose/geada) e `T2M_MAX` > 28 °C (risco de pendoamento). É daqui que sai a **frequência real da classe 3**.
+
+### 5.10 Perfil climático esperado (climatologia de referência)
+
+| Polo | Média anual | Mês + frio (jul) | Mês + quente (fev) | Geada | Chuva/ano |
+|------|-------------|------------------|--------------------|-------|-----------|
+| Sudoeste (Ibiúna/Piedade) | ~18–18,7 °C | ~13 °C | ~22 °C | **Sim** (outono–inverno) | ~1.400–1.650 mm |
+| Alto Tietê (Mogi) | ~19,5–20 °C | ~15 °C | ~23 °C | Ocasional | ~1.300–1.540 mm |
+
+**Leitura agronômica:** as duas regiões vivem, na maior parte do ano, **dentro ou logo abaixo da faixa ideal da alface (15–20 °C)** — o que confirma por que são polos produtores e explica por que a **classe 0 (não fazer nada) será naturalmente dominante**. Os extremos moram nas bordas do calendário: o **verão** (médias de 22–23 °C, picos acima de 28–30 °C) é o bolso de risco de **pendoamento**; o **inverno**, com geadas, é o bolso de risco de **necrose por frio**. Ambos alimentam a **classe 3**, com frequências que a série real — e não um palpite — vai determinar.
+
+---
+
+## 6. Lógica de rotulagem das 4 classes (estado → ação)
 
 A rotulagem é **baseada em regras de prioridade**: avalia-se primeiro o risco mais grave (extremos climáticos), depois excesso, depois escassez; se nada dispara, a ação é "não fazer nada". A ordem evita ambiguidade quando múltiplas condições coexistem.
 
@@ -262,14 +367,15 @@ def rotular_acao(estado, sistema):  # sistema ∈ {"solo", "nft"}
 - **pH fora da faixa** pode ser tratado como sub-caso de correção (associado às classes 1/2 conforme a direção do desvio) ou como uma quinta condição, a depender da granularidade desejada do projeto.
 - A separação **solo × NFT** é essencial: a mesma "umidade alta" significa coisas diferentes (encharcamento no solo vs CE/diluição em NFT) e leva a ações distintas.
 - O *tipburn* é um caso sutil: pode exigir ação (classe 3 ou ajuste de Ca/VPD) **mesmo com nutrição geral adequada** — um bom motivo para incluir VPD, temperatura da solução e cálcio no vetor estendido.
+- Quando aplicada às séries reais de §5, esta função produz a **distribuição natural das classes** — a linha de base contra a qual o balanceamento sintético (§3.2) será calibrado.
 
 ---
 
-## 6. Protocolo de validação do dataset sintético
+## 7. Protocolo de validação do dataset sintético
 
 Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quatro testes mínimos:
 
-1. **Fidelidade estatística (univariada e bivariada).** Comparar distribuições de cada feature e correlações par-a-par entre o sintético e qualquer amostra real disponível (testes de Kolmogorov–Smirnov por variável; matriz de correlação). As distribuições sintéticas devem cair dentro das faixas de §4 e reproduzir correlações conhecidas (ex.: CE↔N, T_ar↔ET).
+1. **Fidelidade estatística (univariada e bivariada).** Comparar distribuições de cada feature e correlações par-a-par entre o sintético e os dados reais disponíveis — incluindo, para as features ambientais, **as séries climáticas de §5**. Testes de Kolmogorov–Smirnov por variável e matriz de correlação. As distribuições sintéticas devem cair dentro das faixas de §4 e reproduzir correlações conhecidas (ex.: CE↔N, T_ar↔ET).
 
 2. **Plausibilidade agronômica (sanity checks por regra).** Nenhuma amostra pode violar restrições físicas/biológicas: pH ∈ faixa viável, sem T_ar = 50 °C, sem CE negativa, fase fenológica coerente com idade da planta. Amostras que violem são descartadas ou corrigidas.
 
@@ -281,23 +387,39 @@ Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quat
 
 ---
 
-## 7. Limitações e ressalvas
+## 8. Limitações e ressalvas
+
+**Do framework de geração**
 
 - **DSSAT/APSIM sem módulo nativo de alface:** a Camada 1 exige calibração ou substituição por modelos mais simples (graus-dia, FAO-56). Documentar a escolha feita.
 - **Dependência de cultivar:** limiares de pendoamento, *tipburn* e ciclo variam fortemente entre cultivares de alface crespa. Idealmente o dataset registra a cultivar; na ausência, usar faixas conservadoras e sinalizar a incerteza.
 - **Sintético ≠ real:** o dataset sintético é *bootstrap*, não verdade final. O compromisso é re-treinar com dados reais à medida que a instrumentação avança (*sim-to-real*).
 - **Conversões e escalas:** sempre declarar a escala de CE→ppm e a base de pH (água vs CaCl₂) para evitar erros sistemáticos.
-- **Regiões produtoras (etapa posterior):** quando o dataset for ancorado em clima real de polos paulistas (ex.: Piedade, Ibiúna), as distribuições climáticas das Camadas 1–2 devem ser recalibradas para as séries locais (INMET / NASA POWER), substituindo as faixas genéricas usadas nesta fase.
+
+**Dos dados climáticos (§5)**
+
+- **Reanálise, não medição local:** os dados NASA POWER derivam de satélite e modelo de assimilação. Não capturam microclima de estufa, ilhas de calor urbanas nem efeitos de encosta.
+- **A grade não resolve Piedade × Ibiúna:** fusão documentada e comprovada empiricamente (§5.3), não presumida.
+- **Coordenadas são centroides municipais**, não das áreas rurais de produção efetiva.
+- **Cobertura parcial das features:** o clima popula **3 das 8 features** (temperatura, umidade relativa, radiação) — as demais (N, P, K, pH, CE) são de manejo/sistema.
+- **Ambiente aberto vs protegido:** as séries refletem condições de campo aberto. Um sistema NFT em ambiente protegido (como a bancada do projeto) tem temperatura e UR **amortecidas** em relação ao clima externo — o que deve ser modelado como um fator de atenuação, não ignorado.
 
 ---
 
-## 8. Referências acadêmicas
+## 9. Referências acadêmicas
 
 **Modelagem e geração de dados sintéticos**
 
 - **JONES, J. W. et al.** The DSSAT cropping system model. *European Journal of Agronomy*, v. 18, n. 3–4, p. 235–265, 2003. DOI: [10.1016/S1161-0301(02)00107-7](https://doi.org/10.1016/S1161-0301(02)00107-7) — modelo mecanístico de cultivo (Camada 1).
 - **XU, L. et al.** Modeling Tabular Data using Conditional GAN (CTGAN). *Advances in Neural Information Processing Systems (NeurIPS)*, v. 32, 2019. [arXiv:1907.00503](https://arxiv.org/abs/1907.00503) · implementação: [github.com/sdv-dev/CTGAN](https://github.com/sdv-dev/CTGAN) — geração tabular sintética (Camada 3b).
 - **SHORTEN, C.; KHOSHGOFTAAR, T. M.** A survey on image data augmentation for deep learning. *Journal of Big Data*, v. 6, n. 60, 2019. *(Atenção: a referência "Shorten 2021" citada nos documentos originais trata de aumento de dados de **imagem/texto**, não tabular; para dados tabulares a referência pertinente é Xu et al. 2019.)*
+
+**Dados climáticos**
+
+- **NASA POWER.** *Prediction of Worldwide Energy Resources* — NASA Langley Research Center, Earth Science / Applied Science Program. Portal: [power.larc.nasa.gov](https://power.larc.nasa.gov/) · Documentação da API diária: [power.larc.nasa.gov/docs/services/api/temporal/daily](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) · Dicionário de parâmetros: [power.larc.nasa.gov/docs/tutorials/parameters](https://power.larc.nasa.gov/docs/tutorials/parameters/) · Origem dos dados (CERES, MERRA-2): [power.larc.nasa.gov/docs/faqs/data](https://power.larc.nasa.gov/docs/faqs/data/) · Licença CC BY 4.0: [registry.opendata.aws/nasa-power](https://registry.opendata.aws/nasa-power/)
+- **NASA EARTHDATA.** Política de uso e citação de dados. [earthdata.nasa.gov/engage/open-data-services-software-policies/data-use-guidance](https://www.earthdata.nasa.gov/engage/open-data-services-software-policies/data-use-guidance)
+
+> **Agradecimento a incluir no artigo:** conforme solicitado pelo projeto, deve-se creditar a obtenção dos dados ao *NASA Langley Research Center (LaRC) POWER Project*, financiado pelo *NASA Earth Science / Applied Science Program*. O texto exato está na documentação oficial.
 
 **Agronomia da alface — nutrição e manejo**
 
@@ -316,4 +438,4 @@ Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quat
 
 ---
 
-*Documento de método do Projeto AgroLab AI — iniciação científica. Adaptado para alface crespa (Lactuca sativa var. crispa) a partir do framework original (concebido para morango). As faixas-parâmetro e referências foram validadas contra literatura primária e fontes oficiais; afirmações sem fonte rastreável foram explicitamente sinalizadas e descartadas.*
+*Documento de método do Projeto AgroLab AI — iniciação científica. Adaptado para alface crespa (Lactuca sativa var. crispa) a partir do framework original (concebido para morango). As faixas-parâmetro e referências foram validadas contra literatura primária e fontes oficiais; afirmações sem fonte rastreável foram explicitamente sinalizadas e descartadas. A ancoragem climática (§5) usa dados abertos da NASA POWER para as regiões produtoras do Cinturão Verde paulista.*

@@ -1,0 +1,52 @@
+======================================================================
+AgroLab AI - PIPELINE CLIMATICO (coleta + correcao)
+======================================================================
+Gerado: 2026-07-30 14:06:43
+Periodo: 20150101 a 20251231 | Fonte: NASA POWER (CC BY 4.0)
+======================================================================
+1) COLETA (NASA POWER)
+======================================================================
+  Ibiuna: baixado da NASA (4018 dias)
+  Piedade: baixado da NASA (4018 dias)
+  Mogi das Cruzes: baixado da NASA (4018 dias)
+
+======================================================================
+2) CONTROLE DE QUALIDADE + FUSAO DE POLOS
+======================================================================
+  Ibiuna          : 4018/4018 dias | nulos=0 | T media=20.8C (ref~18.5) -> OK
+  Piedade         : 4018/4018 dias | nulos=0 | T media=20.8C (ref~18.7) -> OK
+  Mogi das Cruzes : 4018/4018 dias | nulos=0 | T media=20.6C (ref~19.5) -> OK
+
+  Teste Ibiuna x Piedade: dif. maxima = 0.000000 -> IDENTICAS (fusao confirmada)
+  => Piedade cai na mesma celula da grade que Ibiuna;
+     polo Sudoeste representado por Ibiuna (evita pseudorreplicacao).
+
+======================================================================
+3) CORRECAO DE VIES
+======================================================================
+
+  Polo Sudoeste (Ibiuna): ROTA 1 (delta sazonal vs normais climate-data.org)
+    T media anual: 20.8C -> 18.5C (-2.3C)
+
+  Polo Alto Tiete (Mogi das Cruzes): ROTA 1 (delta sazonal vs normais climate-data.org)
+    T media anual: 20.6C -> 19.4C (-1.2C)
+
+======================================================================
+4) PERFIL CLIMATICO + EVENTOS-LIMITE (classe 3)
+======================================================================
+
+  Polo Alto Tiete:
+    T media anual=19.4C | DLI medio=34.5 mol/m2/dia | VPD medio=0.69 kPa
+    calor cronico=3.3% | calor agudo=4.1% | frio=1.3%
+    >> CLASSE 3 (proteger)=7.1% | CLASSE 0/1/2=92.9%
+    dias em faixa ideal T(15-20C)=44% | UR(60-75%)=24%
+
+  Polo Sudoeste:
+    T media anual=18.5C | DLI medio=37.0 mol/m2/dia | VPD medio=0.59 kPa
+    calor cronico=1.4% | calor agudo=2.6% | frio=3.5%
+    >> CLASSE 3 (proteger)=6.5% | CLASSE 0/1/2=93.5%
+    dias em faixa ideal T(15-20C)=50% | UR(60-75%)=33%
+
+======================================================================
+SAIDA: clima_corrigido.csv (8036 linhas) + relatorio_clima.txt
+======================================================================

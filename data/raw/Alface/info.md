@@ -124,6 +124,8 @@ Nenhuma técnica isolada gera um dataset agronomicamente fiel **e** estatisticam
    │ §5 Clima real (NASA POWER)   │   │ §4 Literatura validada           │
    │ séries diárias 2015–2025     │   │ faixas ideal/aceitável/crítica   │
    │ 2 polos do Cinturão Verde    │   │ (pH, CE, T, DLI, nutrição)       │
+   │ → §5.11 CORREÇÃO DE VIÉS      │   │                                  │
+   │   (quantile mapping INMET)   │   │                                  │
    └──────────────────────────────┘   └──────────────────────────────────┘
                 │                                      │
                 │  (features ambientais:               │ (parametriza
@@ -243,6 +245,18 @@ Ordem de micronutrientes por concentração: **Fe > Mn > B > Zn > Cu**.
 
 Esta seção documenta a **aquisição das séries meteorológicas históricas** que ancoram o dataset sintético. Sem ela, as faixas de temperatura, umidade e radiação seriam arbitrárias; com ela, o dataset reflete o clima que a alface **de fato** enfrenta nas regiões onde é mais produzida.
 
+### 5.0 Em linguagem simples: o que foi feito nesta etapa
+
+Antes de gerar qualquer dado sintético, precisávamos saber que clima a alface realmente enfrenta nas regiões onde ela mais é plantada. Em cinco passos:
+
+1. **Escolhemos as regiões.** Os polos produtores do Cinturão Verde paulista: **Ibiúna + Piedade** (polo *Sudoeste*) e **Mogi das Cruzes** (polo *Alto Tietê*).
+2. **Baixamos o clima real** de 2015 a 2025 da **NASA POWER** — base de satélite, gratuita e aberta, com temperatura, umidade, radiação solar, chuva e vento para qualquer coordenada.
+3. **Descobrimos um problema:** os dados vinham ~**2 a 3 °C quentes demais**, porque a grade da NASA é larga (~50 km) e achatou a altitude de Ibiúna (que é alta e fria). Sem corrigir, o modelo temeria um calor que não existe e ignoraria as geadas que existem.
+4. **Corrigimos o desvio** comparando mês a mês com as médias climáticas publicadas das cidades. Depois: ~18,5 °C no Sudoeste e ~19,4 °C no Alto Tietê — batendo com a realidade.
+5. **Fechamos um dataset limpo:** arquivo diário (2015–2025), dois polos, com temperatura (média/máx/mín), umidade, luz (DLI), VPD e chuva — e a contagem de dias de calor e geada, que define a ação "proteger" (classe 3).
+
+Tudo roda hoje num **único script** (`pipeline_clima.py`) que produz **dois arquivos**: o dataset final (`clima_corrigido.csv`) e um relatório (`relatorio_clima.txt`). As seções seguintes detalham cada passo.
+
 ### 5.1 Objetivo
 
 Obter séries climáticas reais das regiões produtoras do **Cinturão Verde paulista** para parametrizar as Camadas 1 e 2 (§3.1, §3.2). O produto **não é o dataset final** — é o *molde estatístico* de onde a geração sintética amostrará os cenários.
@@ -311,11 +325,16 @@ Adota-se o dado **diário com máxima e mínima**. A desagregação intradiária
 - Sanidade física: T_min ≤ T_méd ≤ T_max; UR ∈ [0, 100] %; radiação ≥ 0.
 - Confronto das médias obtidas com a climatologia publicada (Ibiúna ~18 °C; Mogi das Cruzes ~19,5 °C) — divergência grande indica erro na requisição.
 
-### 5.9 Saídas
+### 5.9 Saídas (pipeline unificado)
 
-1. `clima_bruto_{cidade}.csv` — dados diários crus, como vieram da API (rastreabilidade).
-2. `clima_processado.csv` — série consolidada dos 2 polos, com DLI e VPD calculados.
-3. **Relatório de perfil climático** — estatísticas descritivas, sazonalidade e, sobretudo, **contagem e frequência dos eventos-limite**: dias com `T2M_MIN` < 7 °C (risco de necrose/geada) e `T2M_MAX` > 28 °C (risco de pendoamento). É daqui que sai a **frequência real da classe 3**.
+Todo o processo — coleta, controle de qualidade, fusão dos polos, cálculo de DLI/VPD e correção de viés — roda em **um único script**, `pipeline_clima.py`, que substitui os antigos `coleta_clima_nasa_power.py` e `corrige_vies_clima.py`. Ele gera apenas **dois arquivos**:
+
+1. `clima_corrigido.csv` — o **dataset climático final** (diário, 2 polos, 2015–2025), já corrigido e com DLI e VPD calculados. É este que a geração sintética consome.
+2. `relatorio_clima.txt` — **relatório único** com unidades da API, QC, teste de equivalência Ibiúna×Piedade, correção de viés (antes→depois) e a **frequência real da classe 3**.
+
+Os `clima_bruto_{cidade}.csv` ficam apenas como **cache/rastreabilidade** do download original: se existirem, o script os reaproveita e não consulta a NASA de novo.
+
+> **Organização em pasta.** Todas as saídas são gravadas numa subpasta **`clima/`** (criada automaticamente pelo script), mantendo a raiz do projeto limpa: `clima/clima_corrigido.csv`, `clima/relatorio_clima.txt` e os `clima/clima_bruto_*.csv`. Os arquivos de referência INMET (opcionais, rota 2) ficam na pasta do script.
 
 ### 5.10 Perfil climático esperado (climatologia de referência)
 
@@ -326,6 +345,27 @@ Adota-se o dado **diário com máxima e mínima**. A desagregação intradiária
 
 **Leitura agronômica:** as duas regiões vivem, na maior parte do ano, **dentro ou logo abaixo da faixa ideal da alface (15–20 °C)** — o que confirma por que são polos produtores e explica por que a **classe 0 (não fazer nada) será naturalmente dominante**. Os extremos moram nas bordas do calendário: o **verão** (médias de 22–23 °C, picos acima de 28–30 °C) é o bolso de risco de **pendoamento**; o **inverno**, com geadas, é o bolso de risco de **necrose por frio**. Ambos alimentam a **classe 3**, com frequências que a série real — e não um palpite — vai determinar.
 
+### 5.11 Correção de viés (NASA POWER → referência de superfície)
+
+A coleta revelou um **viés quente sistemático** na série NASA POWER, que precisa ser corrigido **antes** da geração sintética — caso contrário, todo o dataset herda um clima 2–3 °C mais quente que o real, e o modelo aprende a proteger contra um calor que não existe e a **ignorar o frio que existe**.
+
+**Diagnóstico.** A grade de ~50 km usa a *altitude média da célula*, não a do município. Ibiúna (996 m) foi lida como se estivesse a ~570 m, gerando **+2,8 °C na média anual e +3,6 °C em julho**. O viés é **sazonal**: maior no inverno, porque o resfriamento noturno e o acúmulo de ar frio em vales são fenômenos locais que uma grade grossa não resolve. Consequência crítica: os eventos de geada (classe 3 por frio) ficaram **severamente subestimados**. Mogi das Cruzes (780 m) teve viés menor (+1,1 °C) e dentro da tolerância.
+
+**Abordagem adotada (rota 2, com rota 1 como *fallback*):**
+
+| Rota | Método | Quando usar |
+|------|--------|-------------|
+| **2 (principal)** | *Quantile mapping* empírico, mês a mês, contra uma **estação INMET real**. Corrige a média **e a forma da distribuição** (inclusive as caudas frias). | Sempre que houver série INMET próxima disponível (BDMEP). |
+| **1 (*fallback*)** | *Delta sazonal*: desloca cada mês pela diferença (normal climatológica − média POWER). Transparente, sem *download* extra. | Quando não há estação INMET, ou como referência cruzada. |
+
+**Ressalva de altitude (declarar no artigo).** A estação INMET mais próxima do polo Sudoeste (Sorocaba, ~600 m) é **mais baixa** que Ibiúna (996 m) — logo, mais quente. Usá-la crua *sub-corrige* o frio. Por isso o procedimento aplica um **ajuste de *lapse rate*** (6,5 °C/km) à referência, trazendo-a para a altitude-alvo antes do mapeamento. Para Mogi, uma estação de altitude semelhante dispensa o ajuste.
+
+**Fonte das normais (rota 1).** Ibiúna, Piedade e Mogi das Cruzes **não possuem estação INMET própria** com série de 30 anos, então não há "normal oficial" INMET por município. A melhor fonte mensal por cidade é a **climatologia modelada do climate-data.org (WorldClim, 1991–2021)**: Ibiúna com média anual **18,5 °C** (jan 21,1 / jul 15,3) e Mogi das Cruzes com **19,5 °C** (jan 22,2 / jul 16,0). São valores *modelados*, não medidos — citáveis como referência, mas por isso a rota 2 (estação INMET real + *lapse rate*) permanece o padrão-ouro.
+
+**Validação.** Após a correção pela rota 1, a média anual corrigida passa a **coincidir com a climatologia publicada** (Sudoeste **20,8 → 18,5 °C**; Alto Tietê **20,6 → 19,4 °C**). A classe 3 total cai de ~40 % (inflada pelo viés + gatilho de pico) para **~6–7 %**, com o frio concentrado no inverno (maio–setembro). **Ressalva honesta:** como o climate-data.org pode ele próprio subestimar o frio de altitude, a frequência de geada da rota 1 (Sudoeste ~3,5 %) é provavelmente *conservadora* — a rota 2, com estação real trazida à altitude de Ibiúna, tende a revelar mais dias frios. Por isso a rota 2 é a definitiva.
+
+**Ordem no *pipeline*:** `coleta` → **`correção de viés`** → geração sintética. A correção entra entre a §5 (aquisição) e a §3 (framework), e é pré-requisito da rotulagem (§6).
+
 ---
 
 ## 6. Lógica de rotulagem das 4 classes (estado → ação)
@@ -335,7 +375,11 @@ A rotulagem é **baseada em regras de prioridade**: avalia-se primeiro o risco m
 ```python
 def rotular_acao(estado, sistema):  # sistema ∈ {"solo", "nft"}
     # --- PRIORIDADE 1: extremos climáticos → Classe 3 (Proteger) ---
-    if (estado.T_ar < 7 or estado.T_ar > 28
+    # Calor: distingue CRÔNICO (pendoamento, processo acumulativo) de AGUDO (pico).
+    calor_cronico = estado.T_media_movel_3d > 24   # média sustentada ≥3 dias
+    calor_agudo   = estado.T_max > 32              # pico severo pontual (raro)
+    frio          = estado.T_min < 7               # necrose marginal / geada
+    if (frio or calor_cronico or calor_agudo
             or estado.Rad_extrema
             or (sistema == "nft" and estado.T_solucao > 27)):
         return 3  # proteger: geada, onda de calor/pendoamento, radiação extrema, hipóxia
@@ -363,7 +407,8 @@ def rotular_acao(estado, sistema):  # sistema ∈ {"solo", "nft"}
 
 **Observações sobre a rotulagem:**
 
-- Os limiares (7 °C, 28 °C, CE 0,8–2,0, etc.) vêm diretamente de **§4** e mudam conforme a **fase fenológica** (a CE-alvo cresce do berçário ao crescimento pleno). O dataset deve carregar a fase como contexto.
+- Os limiares vêm diretamente de **§4** e mudam conforme a **fase fenológica** (a CE-alvo cresce do berçário ao crescimento pleno). O dataset deve carregar a fase como contexto.
+- **Gatilho de calor refinado (importante):** uma versão anterior usava o *pico diário* (`T_max > 28 °C`) como proxy de estresse, o que **superestimava** a classe 3 (chegava a ~40 % dos dias — implausível para uma região onde a alface é viável). Um dia que toca 28 °C às 14 h e cai a 18 °C à noite **não** é uma emergência. O pendoamento é induzido por **temperatura média sustentada**, não por um pico isolado. Por isso o gatilho separa **calor crônico** (média móvel de 3 dias > 24 °C — o verdadeiro sinal de pendoamento) de **calor agudo** (pico > 32 °C — estresse pontual raro). Só essa mudança derruba a classe 3 de ~40 % para **~15–19 %** (antes da correção de viés) e para **~9–10 %** (depois).
 - **pH fora da faixa** pode ser tratado como sub-caso de correção (associado às classes 1/2 conforme a direção do desvio) ou como uma quinta condição, a depender da granularidade desejada do projeto.
 - A separação **solo × NFT** é essencial: a mesma "umidade alta" significa coisas diferentes (encharcamento no solo vs CE/diluição em NFT) e leva a ações distintas.
 - O *tipburn* é um caso sutil: pode exigir ação (classe 3 ou ajuste de Ca/VPD) **mesmo com nutrição geral adequada** — um bom motivo para incluir VPD, temperatura da solução e cálcio no vetor estendido.
@@ -398,7 +443,7 @@ Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quat
 
 **Dos dados climáticos (§5)**
 
-- **Reanálise, não medição local:** os dados NASA POWER derivam de satélite e modelo de assimilação. Não capturam microclima de estufa, ilhas de calor urbanas nem efeitos de encosta.
+- **Reanálise, não medição local:** os dados NASA POWER derivam de satélite e modelo de assimilação. Não capturam microclima de estufa, ilhas de calor urbanas nem efeitos de encosta. **Parcialmente mitigado** pela correção de viés (§5.11): o *quantile mapping* contra estação INMET real reancora a distribuição na medição de superfície, e o ajuste de *lapse rate* recupera o efeito de altitude que a grade perde. O viés residual (microclima de estufa vs campo aberto) permanece e deve ser tratado como fator de atenuação.
 - **A grade não resolve Piedade × Ibiúna:** fusão documentada e comprovada empiricamente (§5.3), não presumida.
 - **Coordenadas são centroides municipais**, não das áreas rurais de produção efetiva.
 - **Cobertura parcial das features:** o clima popula **3 das 8 features** (temperatura, umidade relativa, radiação) — as demais (N, P, K, pH, CE) são de manejo/sistema.
@@ -418,6 +463,8 @@ Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quat
 
 - **NASA POWER.** *Prediction of Worldwide Energy Resources* — NASA Langley Research Center, Earth Science / Applied Science Program. Portal: [power.larc.nasa.gov](https://power.larc.nasa.gov/) · Documentação da API diária: [power.larc.nasa.gov/docs/services/api/temporal/daily](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) · Dicionário de parâmetros: [power.larc.nasa.gov/docs/tutorials/parameters](https://power.larc.nasa.gov/docs/tutorials/parameters/) · Origem dos dados (CERES, MERRA-2): [power.larc.nasa.gov/docs/faqs/data](https://power.larc.nasa.gov/docs/faqs/data/) · Licença CC BY 4.0: [registry.opendata.aws/nasa-power](https://registry.opendata.aws/nasa-power/)
 - **NASA EARTHDATA.** Política de uso e citação de dados. [earthdata.nasa.gov/engage/open-data-services-software-policies/data-use-guidance](https://www.earthdata.nasa.gov/engage/open-data-services-software-policies/data-use-guidance)
+- **CLIMATE-DATA.ORG.** Climatologia mensal modelada (WorldClim, 1991–2021) — normais de referência da rota 1 (correção de viés). Ibiúna: [ibiuna-34791](https://en.climate-data.org/south-america/brazil/sao-paulo/ibiuna-34791/) · Mogi das Cruzes: [mogi-das-cruzes-4112](https://en.climate-data.org/south-america/brazil/sao-paulo/mogi-das-cruzes-4112/). *Climatologia modelada, não medição de estação; a rota 2 (INMET/BDMEP) é a referência rigorosa.*
+- **INMET / BDMEP.** Banco de Dados Meteorológicos para Ensino e Pesquisa — séries de estação para a correção de viés (rota 2). [bdmep.inmet.gov.br](https://bdmep.inmet.gov.br/) · Normais Climatológicas 1991–2020: [portal.inmet.gov.br/normais](https://portal.inmet.gov.br/normais)
 
 > **Agradecimento a incluir no artigo:** conforme solicitado pelo projeto, deve-se creditar a obtenção dos dados ao *NASA Langley Research Center (LaRC) POWER Project*, financiado pelo *NASA Earth Science / Applied Science Program*. O texto exato está na documentação oficial.
 

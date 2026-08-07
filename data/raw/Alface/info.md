@@ -7,6 +7,23 @@
 
 ---
 
+## Resumo em linguagem simples (leia isto primeiro)
+
+O **AgroLab AI** quer demonstrar que uma IA pode tomar decisões de manejo da alface crespa melhores que as de um humano. Para treinar essa IA, precisamos de um **dataset** que ligue o **estado do cultivo** (temperatura, umidade, luz, nutrientes, pH…) à **ação correta**: não fazer nada, travar/corrigir excesso, irrigar/corrigir falta, ou proteger de extremos. Como ainda não há sensores coletando esses dados (o problema de *cold-start*), nós os **geramos de forma sintética — mas ancorados na realidade**.
+
+O caminho, em seis passos:
+
+1. **Validamos os números da alface** (pH, temperatura, luz, nutrientes) contra a literatura científica. → seções 2–4
+2. **Baixamos o clima real** das regiões produtoras (NASA POWER) e **corrigimos seus vieses**. → seção 5
+3. **Definimos as 4 ações** e a regra que decide qual tomar em cada estado. → seção 6
+4. **Geramos o dataset**, cruzando o clima real com estados de manejo plausíveis e rotulando cada linha com a ação certa. → seção 7
+5. **Validamos** se o dataset sintético é fiel e útil. → seção 8
+6. **Registramos limitações e fontes.** → seções 9–10
+
+Começamos pelo cultivo em **solo convencional**; a versão **hidropônica (NFT)** vem em seguida, com a mesma lógica.
+
+---
+
 ## 1. Introdução e Justificativa: o problema de *Cold-Start*
 
 O AgroLab AI precisa de um conjunto de dados rotulado que associe **estados de cultivo** (leituras de sensores) a **ações de manejo** (as 4 classes do projeto). O obstáculo central é clássico em IA aplicada à agricultura: o **problema de cold-start**. Antes de instalar sensores em campo e acumular meses (ou ciclos) de séries históricas, não existe dado real suficiente para treinar um modelo supervisionado. Construir esse histórico organicamente é lento (cada ciclo de alface leva de 25 a 60 dias), caro e, pior, produz pouquíssimos exemplos das situações que mais importam: os **eventos extremos** (geada, onda de calor, falha de bomba, salinização da solução), que são raros por definição, mas são exatamente os momentos em que a decisão correta tem maior valor.
@@ -74,6 +91,8 @@ A lógica completa que mapeia estado → classe está em **§6**.
 ---
 
 ## 3. Framework Metodológico: três abordagens complementares
+
+> **Em resumo:** para gerar dados sintéticos bons, combinamos três técnicas que se completam — um modelo que respeita a física do clima e da planta (Camada 1), a criação proposital de cenários extremos e raros (Camada 2) e a geração em massa de amostras plausíveis com correlações realistas (Camada 3).
 
 Nenhuma técnica isolada gera um dataset agronomicamente fiel **e** estatisticamente rico. O framework combina três camadas, cada uma cobrindo uma fraqueza da outra.
 
@@ -146,14 +165,14 @@ Nenhuma técnica isolada gera um dataset agronomicamente fiel **e** estatisticam
             └─────────────────────────────────────────────────────────┘
                                      │
                                      ▼
-                  Validação do dataset sintético (§7)
+                  Validação do dataset sintético (§8)
 ```
 
 ---
 
 ## 4. Faixas-parâmetro validadas (alface crespa)
 
-Estes são os valores que parametrizam as três camadas. Diferenciam **solo convencional** de **hidroponia NFT** sempre que divergem. Fontes em §9.
+Estes são os valores que parametrizam as três camadas. Diferenciam **solo convencional** de **hidroponia NFT** sempre que divergem. Fontes em §10.
 
 ### 4.1 pH
 
@@ -370,6 +389,8 @@ A coleta revelou um **viés quente sistemático** na série NASA POWER, que prec
 
 ## 6. Lógica de rotulagem das 4 classes (estado → ação)
 
+> **Em resumo:** dado um estado do cultivo, decidimos a ação certa checando os riscos em ordem de gravidade — primeiro extremo climático (proteger), depois excesso (travar), depois falta (irrigar/adubar); se nada ocorre, não fazer nada. É essa regra que gera o rótulo de cada linha do dataset.
+
 A rotulagem é **baseada em regras de prioridade**: avalia-se primeiro o risco mais grave (extremos climáticos), depois excesso, depois escassez; se nada dispara, a ação é "não fazer nada". A ordem evita ambiguidade quando múltiplas condições coexistem.
 
 ```python
@@ -416,7 +437,56 @@ def rotular_acao(estado, sistema):  # sistema ∈ {"solo", "nft"}
 
 ---
 
-## 7. Protocolo de validação do dataset sintético
+## 7. Geração do Dataset (implementação — sistema solo)
+
+### 7.1 Em linguagem simples
+
+Cada linha do dataset é **um dia de clima real + um cenário de manejo + a ação correta**. O gerador percorre os 11 anos de clima corrigido (§5) e, para cada dia, cria vários cenários de manejo diferentes (mais seco, mais adubado, pH fora, etc.), calculando para cada um qual seria a ação certa segundo as regras da §6. O resultado é um conjunto grande e equilibrado, com a explicação (`motivo`) de cada decisão.
+
+### 7.2 Como cada amostra é montada
+
+- **Ambiente** (temperatura, umidade, luz/DLI, VPD): vem direto do `clima/clima_corrigido.csv` — clima real ancorado (§5).
+- **Manejo** (N, P, K, pH, umidade do solo): sorteado por **situação** (ideal / déficit / excesso / seco / encharcado / pH fora), o que dá controle sobre o equilíbrio das classes.
+- **Cultivar**: sorteada entre cinco cultivares crespas; as tolerantes ao calor pendoam a temperaturas mais altas (deslocam o gatilho da classe 3).
+- **Fase fenológica**: `dias_apos_transplante` (1–45) e a `fase` derivada (muda → crescimento → desenvolvimento → colheita).
+- **Rótulo**: a ação (0–3) sai das regras de prioridade da §6.
+
+### 7.3 Variáveis do dataset (schema alinhado ao documento V2, Tabela 11)
+
+| Grupo | Colunas |
+|-------|---------|
+| Contexto | `timestamp`, `polo`, `sistema`, `cultivar`, `tolerancia_calor`, `dias_apos_transplante`, `fase` |
+| Manejo (decisão) | `N`, `P`, `K`, `ph`, `umidade_solo_pct` |
+| Ambiente (clima real) | `temp_ar_c`, `temp_max_c`, `temp_min_c`, `temp_solo_c`, `umidade_relativa_pct`, `vpd_kpa`, `dli_mol_m2_d` |
+| Rótulo | `classe_acao` (0–3), `motivo` |
+| Alvos derivados | `nitrato_mg_kg`, `saude_pct` |
+
+### 7.4 Parâmetros e fontes
+
+- **pH do solo**: ideal 6,0–6,8; crítico <5,5 ou >7,5 (§4.1 / V2 Tab. 1).
+- **P e K**: classes do **IAC Boletim 100** (Raij et al., 1996), grupo hortaliças — P déficit <26 / excesso >120 mg/dm³; K déficit <60 / excesso >235 mg/dm³.
+- **Cultivares**: tolerantes ('Vera', 'Verônica', 'Vanda') pendoam com média móvel de 3 dias >26–27 °C; padrão ('Grand Rapids', 'Simpson') >24 °C (V2 §2.3).
+- **Extremos climáticos**: geada (T_min <7 °C), calor agudo (T_max >32 °C), calor crônico (média de 3 dias acima do limiar da cultivar).
+
+### 7.5 Resultado (primeira geração)
+
+- **200.900 amostras**, 23 colunas.
+- Distribuição das classes: **0 = 35,8% · 1 = 26,2% · 2 = 31,9% · 3 = 6,2%** — classe 0 majoritária (realista), classes 1 e 2 bem povoadas, classe 3 na frequência natural do clima.
+- O efeito da cultivar é visível: cultivares tolerantes pendoam ~15× menos que as padrão.
+
+### 7.6 O que é proxy e o que ficou para depois (honestidade)
+
+- **N em mg/dm³** é um *proxy* (o Boletim 100 não interpreta N por análise de solo; N é manejado por dose). A validar.
+- **`nitrato_mg_kg`** e **`saude_pct`** são derivados por proxy, não medidos.
+- **`biomassa_g`** e **`num_folhas`** (alvos de regressão do V2) **não** são gerados: exigem modelo de crescimento, e não se fabrica dado sem base. Ficam para etapa dedicada.
+
+### 7.7 Organização dos arquivos
+
+O gerador `gerar_dataset_solo.py` lê `clima/clima_corrigido.csv` e grava na subpasta **`solo/`**: o `dataset_solo.csv` e o `relatorio_dataset_solo.txt`. A versão hidropônica (NFT) seguirá o mesmo padrão em pasta própria.
+
+---
+
+## 8. Protocolo de validação do dataset sintético
 
 Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quatro testes mínimos:
 
@@ -432,7 +502,7 @@ Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quat
 
 ---
 
-## 8. Limitações e ressalvas
+## 9. Limitações e ressalvas
 
 **Do framework de geração**
 
@@ -451,7 +521,7 @@ Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quat
 
 ---
 
-## 9. Referências acadêmicas
+## 10. Referências acadêmicas
 
 **Modelagem e geração de dados sintéticos**
 

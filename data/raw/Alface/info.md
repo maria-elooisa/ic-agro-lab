@@ -11,16 +11,17 @@
 
 O **AgroLab AI** quer demonstrar que uma IA pode tomar decisões de manejo da alface crespa melhores que as de um humano. Para treinar essa IA, precisamos de um **dataset** que ligue o **estado do cultivo** (temperatura, umidade, luz, nutrientes, pH…) à **ação correta**: não fazer nada, travar/corrigir excesso, irrigar/corrigir falta, ou proteger de extremos. Como ainda não há sensores coletando esses dados (o problema de *cold-start*), nós os **geramos de forma sintética — mas ancorados na realidade**.
 
-O caminho, em seis passos:
+O caminho, em sete passos:
 
 1. **Validamos os números da alface** (pH, temperatura, luz, nutrientes) contra a literatura científica. → seções 2–4
 2. **Baixamos o clima real** das regiões produtoras (NASA POWER) e **corrigimos seus vieses**. → seção 5
 3. **Definimos as 4 ações** e a regra que decide qual tomar em cada estado. → seção 6
-4. **Geramos o dataset**, cruzando o clima real com estados de manejo plausíveis e rotulando cada linha com a ação certa. → seção 7
-5. **Validamos** se o dataset sintético é fiel e útil. → seção 8
-6. **Registramos limitações e fontes.** → seções 9–10
+4. **Geramos os datasets** (solo convencional e hidropônico NFT), cruzando o clima real com estados de manejo plausíveis e rotulando cada linha com a ação certa. → seção 7
+5. **Registramos a procedência** de cada coluna (medida, derivada ou estimada). → seção 8
+6. **Validamos** se o dataset sintético é fiel e útil. → seção 9
+7. **Registramos limitações e fontes.** → seções 10–11
 
-Começamos pelo cultivo em **solo convencional**; a versão **hidropônica (NFT)** vem em seguida, com a mesma lógica.
+Os **dois sistemas** estão gerados: solo convencional (200.900 amostras) e hidroponia NFT (200.900 amostras), ambos ancorados no mesmo clima real.
 
 ---
 
@@ -165,14 +166,14 @@ Nenhuma técnica isolada gera um dataset agronomicamente fiel **e** estatisticam
             └─────────────────────────────────────────────────────────┘
                                      │
                                      ▼
-                  Validação do dataset sintético (§8)
+                  Validação do dataset sintético (§9)
 ```
 
 ---
 
 ## 4. Faixas-parâmetro validadas (alface crespa)
 
-Estes são os valores que parametrizam as três camadas. Diferenciam **solo convencional** de **hidroponia NFT** sempre que divergem. Fontes em §10.
+Estes são os valores que parametrizam as três camadas. Diferenciam **solo convencional** de **hidroponia NFT** sempre que divergem. Fontes em §11.
 
 ### 4.1 pH
 
@@ -437,7 +438,9 @@ def rotular_acao(estado, sistema):  # sistema ∈ {"solo", "nft"}
 
 ---
 
-## 7. Geração do Dataset (implementação — sistema solo)
+## 7. Geração dos Datasets (implementação)
+
+> Esta seção cobre os **dois sistemas**: o dataset de **solo convencional** (§7.1–7.7) e o de **hidroponia NFT** (§7.8). A procedência de cada coluna — medida, derivada ou *proxy* — está na §8.
 
 ### 7.1 Em linguagem simples
 
@@ -486,7 +489,100 @@ O gerador `gerar_dataset_solo.py` lê `clima/clima_corrigido.csv` e grava na sub
 
 ---
 
-## 8. Protocolo de validação do dataset sintético
+### 7.8 Dataset hidropônico (NFT)
+
+**Em linguagem simples.** Mesma lógica do solo, mas agora a planta vive numa solução nutritiva em circulação. Isso muda o que medimos e o que pode dar errado: em vez de "umidade do solo", olhamos a **CE da solução**; e entram problemas que só existem aqui — solução quente demais, falta de oxigênio na água, reservatório vazio.
+
+**O que muda em relação ao solo (e por quê):**
+
+| Mudança | Detalhe | Ganho |
+|---|---|---|
+| **N deixa de ser proxy** | N, P, K, Ca, Mg em **mg/L**, pela solução de Furlani/IAC (V2 Tab. 4) | Resolve a fragilidade do dataset de solo: aqui a concentração é medida e controlada |
+| **CE no lugar da umidade** | Alvo **muda com a fase**: muda 0,5–0,8 → pleno 1,2–2,0 mS/cm (V2 Tab. 2) | Sinal rico: CE 0,7 é adequada na muda, mas é déficit no crescimento pleno |
+| **Nutrientes escalam com a CE** | CE é proxy da concentração iônica total; N ≈ 196 × (CE/2,0) | Cria a correlação CE↔N,K pedida em §3.3 — validado: em CE≈2,0 o N deu 192 mg/L (Furlani: 196) |
+| **Variáveis novas do NFT** | `temp_solucao_c` (18–24 °C), `od_mg_l` (>5), `nivel_reservatorio_pct` | Cobrem as variáveis críticas apontadas no V2 §2.8 |
+| **O₂ derivado da física** | OD = saturação(temperatura) × aeração | Reproduz a relação real "quanto mais quente, menos O₂" (V2 Tab. 7) |
+| **Ambiente protegido** | Estufa: T_max +1,5 °C, T_min +1,5 °C, UR +5 pp, luz ×0,70 | Hidroponia comercial é sob cobertura; o clima externo chega **atenuado** |
+
+**Novos gatilhos de classe 3 (exclusivos do NFT):** solução acima de 27 °C (derruba o O₂) e **hipóxia radicular** (OD < 4 mg/L, tipicamente por falha de bomba). São *falhas de sistema* — eventos raros, com probabilidade baixa no gerador para não inflar a classe artificialmente.
+
+**Resultado:** **200.900 amostras**, 30 colunas. Distribuição: **0 = 39,2% · 1 = 15,9% · 2 = 25,4% · 3 = 19,5%**.
+
+> **Por que a classe 3 é maior no NFT (19,5%) que no solo (6,2%)?** Não é erro — é agronomia. O solo tem **capacidade de tamponamento**: guarda água e nutrientes, e absorve oscilações. O NFT não: a planta depende de um fluxo contínuo, e qualquer falha (bomba, aquecimento da solução) vira emergência imediata. O V2 registra exatamente isso. O dataset, portanto, ensina ao modelo que **o sistema hidropônico exige vigilância maior** — o que é uma conclusão válida para o artigo.
+
+**Organização:** `gerar_dataset_nft.py` lê `clima/clima_corrigido.csv` e grava em **`nft/`** (`dataset_nft.csv` + `relatorio_dataset_nft.txt`). Os dois datasets compartilham a coluna `sistema`, permitindo concatená-los num conjunto único.
+
+---
+
+## 8. Procedência dos dados: medido, derivado e *proxy*
+
+### 8.1 O que é um *proxy* (e por que isso importa)
+
+Um **proxy** é um substituto: uma variável usada *no lugar* de outra que não se pode medir diretamente, porque as duas andam juntas. Para estimar a riqueza de um bairro, ninguém abre a conta bancária dos moradores — olha-se consumo de energia, tipo de carro, valor dos imóveis. Nenhum desses *é* a riqueza, mas todos se correlacionam com ela.
+
+No dataset, "proxy" significa: **este número não foi medido nem retirado diretamente de uma fonte científica — foi estimado a partir de outra grandeza**. Registrar isso importa por três razões práticas:
+
+1. **Defesa do trabalho.** Perguntado "de onde veio esse número?", é preciso responder se a coluna é validada ou estimada. Marcar a diferença é o que separa um trabalho honesto de um que aparenta uma precisão que não tem.
+2. **Interpretação do modelo.** Se o classificador apontar `saude_pct` como variável mais importante, isso **não é descoberta** — é circularidade, pois `saude_pct` foi construída a partir da própria classe de ação. O mesmo vale para qualquer proxy derivado do rótulo.
+3. **Prioridade de melhoria.** Os proxies marcam exatamente onde dados reais (bancada NFT, análise de solo, orientação técnica) mudariam o dataset para melhor.
+
+### 8.2 Os três níveis de procedência
+
+| Nível | Significado | Como tratar no artigo |
+|-------|-------------|------------------------|
+| **Ancorado** | Vem de dado real ou de faixa validada na literatura | Citar a fonte normalmente |
+| **Derivado (fundamentado)** | Calculado por lei física ou relação consolidada | Citar declarando a equação/relação usada |
+| **Proxy (estimado)** | Construído por suposição plausível, sem fonte direta | **Declarar explicitamente como estimativa** |
+
+### 8.3 Procedência coluna a coluna
+
+**Ancorado — dado real ou literatura validada**
+
+| Coluna | Origem |
+|--------|--------|
+| `temp_ar_c`, `temp_max_c`, `temp_min_c`, `umidade_relativa_pct`, `dli_mol_m2_d`, `temp_ar_externa_c` | Clima real NASA POWER corrigido (§5) |
+| `ph` | Faixas validadas: solo 6,0–6,8; NFT 5,5–6,5 (§4.1 / V2 Tab. 1) |
+| `N`, `P`, `K`, `Ca`, `Mg` (**NFT**) | Solução de Furlani/IAC em mg/L (§4.6 / V2 Tab. 4) |
+| `P`, `K` (**solo**) | Classes do IAC Boletim 100, grupo hortaliças |
+| `ce_ms_cm`, `ce_alvo_min`, `ce_alvo_max` | Faixas por fase (§4.2 / V2 Tab. 2) |
+| `temp_solucao_c` (faixa), `od_mg_l` (limiares) | V2 Tab. 7 |
+| `cultivar`, `tolerancia_calor` | Tolerância varietal documentada (V2 §2.3) |
+| `classe_acao`, `motivo` | Regras de prioridade da §6, a partir das faixas validadas |
+| `timestamp`, `polo` | Data e polo produtor da série climática real (§5) |
+| `sistema` | Rótulo do sistema de cultivo (`solo` / `hidroponia_nft`) |
+
+**Derivado (fundamentado) — calculado por relação física consolidada**
+
+| Coluna | Relação usada |
+|--------|----------------|
+| `vpd_kpa` | Equação de Tetens, a partir de temperatura e umidade |
+| `od_mg_l` (**NFT**) | Solubilidade do O₂ em função da temperatura × fator de aeração |
+| `N`, `P`, `K`, `Ca`, `Mg` (**NFT**) escalando com a CE | CE é medida da concentração iônica total — prática padrão da hidroponia. **Validado:** em CE ≈ 2,0 o N resultou em 192 mg/L, contra 196 de Furlani |
+| Ambiente interno da estufa (**NFT**) | Atenuação do clima externo por fatores declarados (T +1,5 °C, UR +5 pp, luz ×0,70) |
+
+**Proxy (estimado) — declarar como estimativa**
+
+| Coluna | Como foi construído | Fragilidade |
+|--------|---------------------|-------------|
+| **`N` (solo)** | Limiares de déficit (<15) e excesso (>50 mg/dm³) assumidos | **A mais frágil.** O Boletim 100 **não interpreta N por análise de solo** — o N mineral varia demais com chuva, temperatura e mineralização, e na prática é manejado por **dose (kg/ha)**, não por teor. Some no NFT, onde o N é concentração real da solução |
+| `temp_solo_c` | Média móvel de 3 dias do ar + ruído (o solo amortece a variação) | Direção correta; magnitude depende de solo e cobertura |
+| `nitrato_mg_kg` | "Mais N → mais nitrato; mais luz → menos nitrato" (V2 §2.8) | A relação é real; **os coeficientes são assumidos**, não de estudo |
+| `saude_pct` | Score penalizando desvios das faixas ideais | **Circular:** derivado da própria classe de ação. Não usar como evidência de importância de variável |
+| `umidade_solo_pct` | % da água disponível; irrigar <50%, encharcado >100% | Prática padrão para raiz rasa; limiares refináveis |
+| `nivel_reservatorio_pct` (**NFT**) | Sorteado; repor abaixo de 30% | Limiar operacional assumido, não medido |
+| `dias_apos_transplante`, `fase` | Sorteados uniformemente (1–45 dias) | Não seguem coorte real de plantio |
+
+### 8.4 O que deliberadamente **não** foi gerado
+
+`biomassa_g` e `num_folhas` — alvos de regressão previstos no schema do V2 — **não constam** nos datasets. Gerá-los exigiria um modelo de crescimento calibrado para alface crespa; produzi-los por suposição seria fabricar dado sem base. Ficam para etapa dedicada, caso o projeto avance para predição de produtividade.
+
+### 8.5 Nota de método para o artigo
+
+> As variáveis ambientais derivam de séries climáticas reais (NASA POWER, 2015–2025) corrigidas por viés; as faixas agronômicas seguem literatura validada (IAC/Furlani, IAC Boletim 100, Embrapa, SciELO); as variáveis de manejo são sintetizadas dentro dessas faixas. As colunas assinaladas como *proxy* na §8.3 constituem estimativas construídas para viabilizar o treinamento inicial e devem ser substituídas por medições assim que houver instrumentação.
+
+---
+
+## 9. Protocolo de validação do dataset sintético
 
 Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quatro testes mínimos:
 
@@ -502,7 +598,7 @@ Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quat
 
 ---
 
-## 9. Limitações e ressalvas
+## 10. Limitações e ressalvas
 
 **Do framework de geração**
 
@@ -521,7 +617,7 @@ Gerar dados não basta; é preciso provar que são **fiéis** e **úteis**. Quat
 
 ---
 
-## 10. Referências acadêmicas
+## 11. Referências acadêmicas
 
 **Modelagem e geração de dados sintéticos**
 

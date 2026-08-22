@@ -1,0 +1,44 @@
+======================================================================
+AgroLab AI - DATASET SOLO CONVENCIONAL (v2, alinhado ao doc V2)
+======================================================================
+Gerado: 2026-08-07 10:43:30 | seed=42
+Dias de clima: 8036 | cenarios/dia: 25
+TOTAL DE AMOSTRAS: 200900
+
+DISTRIBUICAO DAS CLASSES:
+  Classe 0 (nao fazer nada          ):   71939  ( 35.8%)
+  Classe 1 (travar/corrigir excesso ):   52565  ( 26.2%)
+  Classe 2 (irrigar/corrigir falta  ):   64016  ( 31.9%)
+  Classe 3 (proteger (extremos)     ):   12380  (  6.2%)
+
+CULTIVARES (5): Vera, Veronica, Vanda, Grand Rapids, Simpson
+  classe 3 por tolerancia (tolerante deve pendoar MENOS):
+   {'padrao': 7.1, 'tolerante': 5.5}
+
+FASES: {'desenvolvimento': 66892, 'crescimento': 66871, 'muda': 44684, 'colheita': 22453}
+
+COLUNAS (23): timestamp, polo, sistema, cultivar, tolerancia_calor, dias_apos_transplante, fase, N, P, K, ph, umidade_solo_pct, temp_ar_c, temp_max_c, temp_min_c, temp_solo_c, umidade_relativa_pct, vpd_kpa, dli_mol_m2_d, classe_acao, motivo, nitrato_mg_kg, saude_pct
+
+ESTATISTICAS (manejo + ambiente + targets):
+              N         P         K        ph  umidade_solo_pct  temp_ar_c  temp_solo_c  umidade_relativa_pct   vpd_kpa  dli_mol_m2_d  nitrato_mg_kg  saude_pct
+count  200900.0  200900.0  200900.0  200900.0          200900.0   200900.0     200900.0              200900.0  200900.0      200900.0       200900.0   200900.0
+mean       33.4      75.2     152.1       6.4              72.8       19.0         19.0                  76.8       0.6          35.7         2078.2       83.8
+std        15.5      39.6      76.1       0.4              25.3        3.3          3.1                  10.0       0.4          12.0          496.9        7.6
+min         3.0       5.2      12.0       4.8               5.0        5.8          5.7                  28.6       0.0           3.8          500.0       66.0
+25%        22.6      46.2      97.8       6.2              57.7       16.8         16.8                  71.3       0.4          27.8         1738.0       78.0
+50%        32.3      72.4     146.8       6.4              74.0       19.2         19.2                  78.9       0.6          35.0         2072.0       83.0
+75%        42.1      98.6     195.7       6.6              90.2       21.4         21.3                  84.3       0.9          44.5         2404.0       90.0
+max       110.0     264.0     517.0       8.2             130.0       29.1         30.0                  96.6       2.8          66.0         4607.0      100.0
+
+COERENCIA motivo x classe:
+classe_acao  motivo                                       
+0            condicoes dentro do ideal                        71939
+1            corrigir excesso de nutrientes (risco salino)    26354
+             corrigir pH alto                                  7585
+             travar irrigacao: solo encharcado                18626
+2            adubar: deficiencia nutricional                  31928
+             corrigir pH baixo (calagem)                       7527
+             irrigar: umidade do solo baixa                   24561
+3            proteger: calor agudo (T_max>32C)                 5301
+             proteger: calor sustentado (pendoamento)          2379
+             proteger: frio/geada (T_min<7C)                   4700

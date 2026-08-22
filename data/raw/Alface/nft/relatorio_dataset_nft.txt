@@ -1,0 +1,61 @@
+======================================================================
+AgroLab AI - DATASET HIDROPONICO NFT
+======================================================================
+Gerado: 2026-08-11 09:09:12 | seed=42
+Dias de clima: 8036 | cenarios/dia: 25
+TOTAL DE AMOSTRAS: 200900
+
+AMBIENTE PROTEGIDO (fatores aplicados ao clima externo):
+  T_max +1.5C | T_min +1.5C | UR +5.0pp | luz x0.7
+
+DISTRIBUICAO DAS CLASSES:
+  Classe 0 (nao fazer nada          ):   78677  ( 39.2%)
+  Classe 1 (travar/corrigir excesso ):   32028  ( 15.9%)
+  Classe 2 (repor/corrigir falta    ):   51017  ( 25.4%)
+  Classe 3 (proteger (extremos)     ):   39178  ( 19.5%)
+
+CE MEDIA POR FASE (deve subir da muda ate o pleno):
+fase
+colheita           1.65
+crescimento        1.02
+desenvolvimento    1.65
+muda               0.67
+
+CORRELACAO CE x nutrientes (deve ser ~1.0, pois escalam juntos):
+  CE-N: 0.992 | CE-K: 0.992
+
+CORRELACAO temp_solucao x OD (deve ser NEGATIVA - fisica):
+  -0.292
+
+DLI interno vs externo (cobertura transmite ~70%):
+  interno medio: 25.0 mol/m2/dia
+
+classe 3 por tolerancia da cultivar (tolerante deve pendoar MENOS):
+  {'padrao': 23.1, 'tolerante': 17.1}
+
+COLUNAS (30): timestamp, polo, sistema, cultivar, tolerancia_calor, dias_apos_transplante, fase, ce_ms_cm, ph, N, P, K, Ca, Mg, temp_solucao_c, od_mg_l, nivel_reservatorio_pct, temp_ar_c, temp_max_c, temp_min_c, umidade_relativa_pct, vpd_kpa, dli_mol_m2_d, temp_ar_externa_c, ce_alvo_min, ce_alvo_max, classe_acao, motivo, nitrato_mg_kg, saude_pct
+
+ESTATISTICAS:
+       ce_ms_cm        ph         N         P         K  temp_solucao_c   od_mg_l  nivel_reservatorio_pct  temp_ar_c  umidade_relativa_pct   vpd_kpa  dli_mol_m2_d  nitrato_mg_kg  saude_pct
+count  200900.0  200900.0  200900.0  200900.0  200900.0        200900.0  200900.0                200900.0   200900.0              200900.0  200900.0      200900.0       200900.0   200900.0
+mean        1.2       6.0     119.8      26.3     113.7            21.1       7.2                    60.3       21.2                  81.8       0.5          25.0         2573.8       85.4
+std         0.6       0.5      63.9      14.0      60.7             2.7       1.2                    24.0        3.2                  10.0       0.3           8.4          559.1        8.5
+min         0.1       4.2       6.6       1.5       6.2            11.4       1.6                     5.0        8.4                  33.6       0.0           2.7          600.0       66.0
+25%         0.8       5.7      73.9      16.2      70.1            19.5       6.7                    41.7       19.2                  76.3       0.3          19.4         2192.0       78.0
+50%         1.1       6.0     108.9      23.9     103.3            20.9       7.4                    61.2       21.5                  83.9       0.4          24.5         2544.0       83.0
+75%         1.6       6.3     156.1      34.2     148.0            22.3       8.0                    80.5       23.5                  89.3       0.6          31.1         2920.0       95.0
+max         3.8       7.9     433.3      98.1     418.5            32.0      10.2                   100.0       31.3                 100.0       2.4          46.2         5673.0      100.0
+
+COERENCIA motivo x classe:
+classe_acao  motivo                                        
+0            condicoes dentro do ideal                         78677
+1            corrigir pH alto (precipita micronutrientes)       8933
+             travar fertirrigacao: CE acima do alvo da fase    23095
+2            corrigir pH baixo                                  8883
+             repor agua: nivel do reservatorio baixo           17704
+             repor nutrientes: CE abaixo do alvo da fase       24430
+3            proteger: calor agudo (T_max>32C)                 11377
+             proteger: calor sustentado (pendoamento)          10330
+             proteger: frio/geada (T_min<7C)                    1925
+             proteger: hipoxia radicular (OD<4 mg/L)            6817
+             proteger: solucao quente (>27C, queda de O2)       8729

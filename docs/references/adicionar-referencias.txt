@@ -1,0 +1,25 @@
+Referências Alface:
+
+1. Locais onde Alface Crespa é mais produzido
+https://nutricaodesafras.com.br/plantacao-de-alface
+https://www.agenciasp.sp.gov.br/sao-paulo-e-lider-na-producao-nacional-de-alface/
+https://apta.sp.gov.br/noticias/produ%C3%A7%C3%A3o-diversificada-de-hortali%C3%A7as-garante-renda-ao-produtor-rural-e-nutri%C3%A7%C3%A3o-ao-consumidor
+
+2. Construção dos Dados de forma sintética:
+Temperatura historica das regioes: https://tempo.inmet.gov.br/TabelaEstacoes/A001
+NASA
+- Portal do projeto da Nasa: https://power.larc.nasa.gov/
+- Documentação da API diária (a que vamos usar): https://power.larc.nasa.gov/docs/services/api/temporal/daily/
+- Dicionário de parâmetros: https://power.larc.nasa.gov/docs/tutorials/parameters/
+- FAQ sobre origem dos dados (CERES, MERRA-2): https://power.larc.nasa.gov/docs/faqs/data/
+- Licença e uso aberto (CC BY 4.0): https://registry.opendata.aws/nasa-power/
+- Política de citação da NASA: https://www.earthdata.nasa.gov/engage/open-data-services-software-policies/data-use-guidance
+
+
+Referências Tomate:
+to-do
+
+
+
+Referências Morango:
+to-do

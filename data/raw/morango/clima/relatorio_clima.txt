@@ -1,0 +1,15 @@
+AgroLab AI — RELATÓRIO DA PIPELINE CLIMÁTICA DO MORANGO
+Período final: 2026-01-01 a 2026-12-31
+Linhas: 365 | dias observados incorporados: 21
+ATENÇÃO: dias restantes são sazonalidade sintética; não são observações de estação.
+
+Resumo numérico:
+       temp_ar_c  temp_max_c  temp_min_c  umidade_relativa_pct  chuva_mm  vpd_kpa  dli_mol_m2_d
+count     365.00      365.00      365.00                365.00    365.00   365.00        365.00
+mean       18.97       25.00       13.07                 70.80      2.35     0.67         34.10
+std         3.04        3.33        3.41                  9.44      5.00     0.18          9.76
+min        12.33       17.34        6.02                 46.12      0.00     0.11         14.32
+25%        16.35       22.41       10.55                 64.14      0.00     0.57         26.35
+50%        18.96       25.04       12.86                 69.99      0.00     0.67         33.35
+75%        21.51       27.55       15.78                 77.68      2.22     0.77         41.71
+max        26.22       33.31       20.90                 96.38     30.80     1.65         59.35

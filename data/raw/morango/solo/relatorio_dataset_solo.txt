@@ -1,0 +1,27 @@
+AgroLab AI — MORANGO EM SOLO CONVENCIONAL
+======================================================================
+Linhas: 5475 | colunas: 23 | seed=42
+
+Distribuição das classes:
+  classe 0: 2225 (40.6%)
+  classe 1: 1386 (25.3%)
+  classe 2: 1759 (32.1%)
+  classe 3: 105 (1.9%)
+
+Coerência motivo × classe:
+classe_acao  motivo                                            
+0            condições dentro do ideal                             2225
+1            travar/corrigir: excesso, encharcamento ou pH alto    1386
+2            irrigar/adubar/corrigir: falta, seca ou pH baixo      1759
+3            proteger: calor do ar                                  105
+
+Estatísticas:
+       N_mg_dm3  P_mg_dm3  K_mg_dm3       ph  umidade_solo_pct  temp_solo_c  temp_ar_c  saude_pct
+count   5475.00   5475.00   5475.00  5475.00           5475.00      5475.00    5475.00    5475.00
+mean      33.18     57.75    134.27     6.03             69.67        18.97      18.97      92.76
+std       12.90     29.03     55.07     0.59             20.93         3.20       3.04       6.05
+min        3.00      5.20     15.00     4.30             15.10        10.50      12.30      82.00
+25%       25.50     41.15    102.30     5.73             60.00        16.40      16.40      88.00
+50%       32.30     54.90    130.50     6.01             70.80        19.00      19.00      88.00
+75%       39.10     68.60    158.00     6.30             81.90        21.50      21.50     100.00
+max       99.80    219.70    419.90     8.00            125.00        28.80      26.20     100.00
